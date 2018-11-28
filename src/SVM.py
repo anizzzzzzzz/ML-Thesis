@@ -24,7 +24,7 @@ onehotencoder = OneHotEncoder(categorical_features=[5])
 X = onehotencoder.fit_transform(X).toarray()
 
 # Avoiding dummy variable trap
-X = X[:, 0:8]
+X = X[:, 1:]
 
 # splitting into training and testing set
 from sklearn.model_selection import train_test_split

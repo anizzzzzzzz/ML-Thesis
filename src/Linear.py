@@ -2,6 +2,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+desired_width=320
+
+pd.set_option('display.width', desired_width)
+
+np.set_printoptions(linewidth=desired_width)
+
+pd.set_option('display.max_columns',10)
 
 dataset = pd.read_csv('data/insurance.csv')
 
@@ -29,7 +36,7 @@ onehotencode = OneHotEncoder(categorical_features=[5])
 X = onehotencode.fit_transform(X).toarray()
 
 # Avoiding dummy variable trap
-X = X[:, 0:8]
+X = X[:, 1:]
 
 # Splitting into training and testing set
 from sklearn.model_selection import train_test_split
