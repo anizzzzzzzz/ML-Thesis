@@ -1,6 +1,16 @@
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
+desired_width=320
+
+pd.set_option('display.width', desired_width)
+
+np.set_printoptions(linewidth=desired_width)
+
+pd.set_option('display.max_columns',10)
 
 dataset = pd.read_csv('data/insurance.csv')
 
@@ -80,31 +90,57 @@ X = X[:, 1:]
 
 # -------------------------------------------------------------------------------------------
 
-# splitting into training and testing set
+# Splitting into training and testing set
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
-# Standardizing data
-from sklearn.preprocessing import StandardScaler
-sc = StandardScaler()
-X_train_std = sc.fit_transform(X_train)
-X_test_std = sc.transform(X_test)
+# Standardizing the data
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+se = MinMaxScaler()
+X_train_std = se.fit_transform(X_train)
+# standardizing test_data with respect to train_data
+X_test_std = se.transform(X_test)
 
-# # Normalization
-# from sklearn.preprocessing import MinMaxScaler
-# sc = MinMaxScaler()
-# X_train_std = sc.fit_transform(X_train)
-# X_test_std = sc.transform(X_test)
+# Important
+# Reshaping X_train and X_test into 3D for input of LSTM
+X_train_std = np.reshape(X_train_std, (X_train_std.shape[0], X_train_std.shape[1], 1))
+X_test_std = np.reshape(X_test_std, (X_test_std.shape[0], X_test_std.shape[1], 1))
 
-# SVM
-from sklearn.svm import SVR
-svm = SVR(kernel='rbf')
-svm.fit(X_train_std, y_train)
-y_pred = svm.predict(X_test_std)
+# Building ANN
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, LSTM
 
-# Calculating  Mean Squared error, Variance score
+# Initializing ANN
+regressor = Sequential()
+
+# Adding the input layer and the first hidden layer with Dropout
+regressor.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], 1)))
+regressor.add(Dropout(rate = 0.2))
+
+# Adding the second hidden layer with Dropout
+regressor.add(LSTM(units=50, return_sequences=True))
+regressor.add(Dropout(rate=0.2))
+
+# Adding the fourth LSTM layer and some Dropout regularization
+regressor.add(LSTM(units=50))
+regressor.add(Dropout(rate=0.2))
+
+# Adding the output layer
+regressor.add(Dense(units=1))
+
+# compiling the ANN
+regressor.compile(optimizer='adam', loss='mean_squared_error')
+
+# fitting the ANN with training dataset
+regressor.fit(X_train_std, y_train, batch_size=10, epochs=100)
+
+y_pred = regressor.predict(X_test_std)
+
+# Adding dimension to y_test since regressor returns array in (268,1)
+y_test = y_test[:, np.newaxis]
+
+# Calculating coefficients, Mean Squared error, Variance score
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-import numpy as np
 # The mean absolute error
 print("Mean absolute error: %.2f"
       % mean_absolute_error(y_test, y_pred))
@@ -117,9 +153,6 @@ print("Root Mean squared error: %.2f"
 # Explained variance score: 1 is perfect prediction
 print('Variance score: %.2f' % r2_score(y_test, y_pred))
 
-# plotting in graph
-import matplotlib.pyplot as plt
-import seaborn as sns
 # Scatter plot
 plt.scatter(y_test, y_pred)
 plt.show()

@@ -4,7 +4,6 @@ import seaborn as sns
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
-
 desired_width=320
 
 pd.set_option('display.width', desired_width)
@@ -16,29 +15,29 @@ pd.set_option('display.max_columns',10)
 dataset = pd.read_csv('data/insurance.csv')
 
 # ------------ Trying model with all features -----------------------------
-X = dataset.iloc[:, 0:6].values
-y = dataset.iloc[:, 6].values
-
-# Label Encoder for region
-le_1 = LabelEncoder()
-X[:,5] = le_1.fit_transform(X[:,5])
-
-# Label Encoder for sex
-le_2 = LabelEncoder()
-# X[:, 1] = (X[:, 1] == 'male')
-X[:, 1] = le_2.fit_transform(X[:, 1])
-
-# Label Encoder for smoker
-le_3 = LabelEncoder()
-# X[:, 4] = (X[:, 4] == 'yes')
-X[:, 4] = le_3.fit_transform(X[:, 4])
-
-# one hot encoder for regions
-onehotencode = OneHotEncoder(categorical_features=[5])
-X = onehotencode.fit_transform(X).toarray()
-
-# Avoiding dummy variable trap
-X = X[:, 1:]
+# X = dataset.iloc[:, 0:6].values
+# y = dataset.iloc[:, 6].values
+#
+# # Label Encoder for region
+# le_1 = LabelEncoder()
+# X[:,5] = le_1.fit_transform(X[:,5])
+#
+# # Label Encoder for sex
+# le_2 = LabelEncoder()
+# # X[:, 1] = (X[:, 1] == 'male')
+# X[:, 1] = le_2.fit_transform(X[:, 1])
+#
+# # Label Encoder for smoker
+# le_3 = LabelEncoder()
+# # X[:, 4] = (X[:, 4] == 'yes')
+# X[:, 4] = le_3.fit_transform(X[:, 4])
+#
+# # one hot encoder for regions
+# onehotencode = OneHotEncoder(categorical_features=[5])
+# X = onehotencode.fit_transform(X).toarray()
+#
+# # Avoiding dummy variable trap
+# X = X[:, 1:]
 
 # -----------------------------------------------------------------------------
 
@@ -55,7 +54,6 @@ X = X[:, 1:]
 # -------------------------------------------------------------------------------------------
 
 # ----------------  Trying model with only bmi, children and smoker features--------------
-
 # dataset = dataset.loc[:, ['bmi', 'children', 'smoker', 'charges']]
 #
 # X = dataset.iloc[:, 0:3].values
@@ -69,27 +67,26 @@ X = X[:, 1:]
 # -------------------------------------------------------------------------------------------
 
 # ----------------  Trying model with only bmi, childrenm smoker and region features--------------
+dataset = dataset.loc[:, ['bmi', 'children', 'smoker', 'region', 'charges']]
 
-# dataset = dataset.loc[:, ['bmi', 'children', 'smoker', 'region', 'charges']]
-#
-# X = dataset.iloc[:, 0:4].values
-# y = dataset.iloc[:, 4].values
-#
-# # Label Encoder for smoker
-# le_1 = LabelEncoder()
-# # X[:, 4] = (X[:, 4] == 'yes')
-# X[:, 2] = le_1.fit_transform(X[:, 2])
-#
-# # Label Encoder for region
-# le_2 = LabelEncoder()
-# X[:,3] = le_2.fit_transform(X[:,3])
-#
-# # one hot encoder for regions
-# onehotencode = OneHotEncoder(categorical_features=[3])
-# X = onehotencode.fit_transform(X).toarray()
-#
-# # Avoiding dummy variable trap
-# X = X[:, 1:]
+X = dataset.iloc[:, 0:4].values
+y = dataset.iloc[:, 4].values
+
+# Label Encoder for smoker
+le_1 = LabelEncoder()
+# X[:, 4] = (X[:, 4] == 'yes')
+X[:, 2] = le_1.fit_transform(X[:, 2])
+
+# Label Encoder for region
+le_2 = LabelEncoder()
+X[:,3] = le_2.fit_transform(X[:,3])
+
+# one hot encoder for regions
+onehotencode = OneHotEncoder(categorical_features=[3])
+X = onehotencode.fit_transform(X).toarray()
+
+# Avoiding dummy variable trap
+X = X[:, 1:]
 
 # -------------------------------------------------------------------------------------------
 
@@ -98,23 +95,43 @@ from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
 # Standardizing the data
-from sklearn.preprocessing import StandardScaler
-se = StandardScaler()
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+se = MinMaxScaler()
 X_train_std = se.fit_transform(X_train)
 # standardizing test_data with respect to train_data
 X_test_std = se.transform(X_test)
 
-# Applying Linear Regression
-from sklearn.linear_model import LinearRegression
-le = LinearRegression()
-le.fit(X_train_std, y_train)
+# Building ANN
+from keras.models import Sequential
+from keras.layers import Dense, Dropout
 
-y_pred = le.predict(X_test_std)
+# Initializing ANN
+regressor = Sequential()
+
+# Adding the input layer and the first hidden layer with Dropout
+regressor.add(Dense(units=6, activation='relu', kernel_initializer='normal', input_dim=X_train_std.shape[1]))
+regressor.add(Dropout(rate = 0.2))
+
+# Adding the second hidden layer with Dropout
+regressor.add(Dense(units=6, activation='relu', kernel_initializer='normal'))
+regressor.add(Dropout(rate=0.2))
+
+# Adding the output layer
+regressor.add(Dense(units=1, kernel_initializer='normal'))
+
+# compiling the ANN
+regressor.compile(optimizer='adam', loss='mean_squared_error')
+
+# fitting the ANN with training dataset
+regressor.fit(X_train_std, y_train, batch_size=10, epochs=100)
+
+y_pred = regressor.predict(X_test_std)
+
+# Adding dimension to y_test since regressor returns array in (268,1)
+y_test = y_test[:, np.newaxis]
 
 # Calculating coefficients, Mean Squared error, Variance score
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-# The coefficients
-print('Coefficients: \n', le.coef_)
 # The mean absolute error
 print("Mean absolute error: %.2f"
       % mean_absolute_error(y_test, y_pred))
